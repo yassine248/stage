@@ -32,4 +32,15 @@ class AuthController extends Controller
 
         return response()->json($result);
     }
+
+     public function loginTest(LoginRequest $request)
+    {
+        $result = $this->authService->login($request->validated());
+
+        if (!$result) {
+            return response()->json(['message' => 'Identifiants invalides'], 401);
+        }
+
+        return response()->json($result);
+    }
 }
