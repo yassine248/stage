@@ -13,4 +13,9 @@ class Terrain extends Model
         'price_per_hour',
         'is_available',
     ];
+    public function reservations()
+{
+    return $this->hasMany(Reservation::class);
+}
+
 }
