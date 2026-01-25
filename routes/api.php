@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\TerrainController;
 use App\Http\Controllers\Api\ReservationController;
+use App\Http\Controllers\Api\AvailabilityController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -24,3 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reservations/{id}', [ReservationController::class, 'destroy']);
 
 });
+Route::middleware('auth:sanctum')->post(
+    '/terrains/{terrain}/check-availability',
+    [AvailabilityController::class, 'check']
+);
