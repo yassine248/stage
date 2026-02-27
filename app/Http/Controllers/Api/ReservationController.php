@@ -89,12 +89,7 @@ class ReservationController extends Controller
     public function show(Reservation $reservation)
     {
         try {
-            // Vérifier que l'utilisateur est propriétaire de la réservation
-            if ($reservation->user_id !== auth()->id()) {
-                return response()->json([
-                    'message' => 'Non autorisé'
-                ], Response::HTTP_FORBIDDEN);
-            }
+            $this->authorize('view', $reservation);
 
             return new ReservationResource($reservation->load('terrain', 'user'));
         } catch (\Exception $e) {
@@ -111,19 +106,7 @@ class ReservationController extends Controller
     public function update(\Illuminate\Http\Request $request, Reservation $reservation)
     {
         try {
-            // Vérifier que l'utilisateur est propriétaire de la réservation
-            if ($reservation->user_id !== auth()->id()) {
-                return response()->json([
-                    'message' => 'Non autorisé'
-                ], Response::HTTP_FORBIDDEN);
-            }
-
-            // Vérifier que la réservation n'est pas déjà annulée
-            if ($reservation->status === 'cancelled') {
-                return response()->json([
-                    'message' => 'Impossible de modifier une réservation annulée'
-                ], Response::HTTP_CONFLICT);
-            }
+            $this->authorize('update', $reservation);
 
             $validated = $request->validate([
                 'date' => 'sometimes|date|after_or_equal:today',
@@ -176,25 +159,56 @@ class ReservationController extends Controller
     public function destroy(Reservation $reservation)
     {
         try {
-            // Vérifier que l'utilisateur est propriétaire de la réservation
-            if ($reservation->user_id !== auth()->id()) {
-                return response()->json([
-                    'message' => 'Non autorisé'
-                ], Response::HTTP_FORBIDDEN);
-            }
+            $this->authorize('delete', $reservation);
 
-            // Marquer la réservation comme annulée au lieu de la supprimer
             $reservation->update(['status' => 'cancelled']);
 
-            return response()->json([
-                'message' => 'Réservation annulée avec succès'
-            ]);
+            return response()->json(['message' => 'Réservation annulée avec succès']);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Erreur lors de l\'annulation de la réservation',
                 'error' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Return the full history of the authenticated user's reservations
+     */
+    public function history()
+    {
+        $reservations = Reservation::with('terrain')
+            ->where('user_id', auth()->id())
+            ->orderBy('date', 'desc')
+            ->get();
+
+        return ReservationResource::collection($reservations);
+    }
+
+    /**
+     * Cancel a reservation (user action)
+     */
+    public function cancel(Reservation $reservation)
+    {
+        // Vérifier que l'utilisateur est propriétaire de la réservation
+        if ($reservation->user_id !== auth()->id()) {
+            return response()->json([
+                'message' => 'Non autorisé'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($reservation->status === 'cancelled') {
+            return response()->json([
+                'message' => 'Réservation déjà annulée'
+            ], Response::HTTP_CONFLICT);
+        }
+
+        $reservation->update(['status' => 'cancelled']);
+
+        return response()->json([
+            'message' => 'Réservation annulée avec succès',
+            'reservation' => new ReservationResource($reservation->load('terrain', 'user'))
+        ]);
     }
 }
 
